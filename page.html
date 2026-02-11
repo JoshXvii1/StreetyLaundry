@@ -1,0 +1,3253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GODC Laundry POS & Inventory System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+  /* Hide the Order Receipt header and close button during printing */
+  .modal-header,
+  .modal-title,
+  .close,
+  .btn-close {
+    display: none !important;
+  }
+
+  /* Optional: hide overlay/backdrop when printing */
+  .modal-backdrop,
+  #overlay {
+    display: none !important;
+  }
+
+  /* Ensure receipt content stays clean and centered */
+  #receiptModal, .modal-content, .modal-body {
+    position: relative !important;
+    box-shadow: none !important;
+  }
+}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-item {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-left-color: #6366f1;
+        }
+
+        .nav-item.active {
+            background: rgba(99, 102, 241, 0.2);
+            border-left-color: #6366f1;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: left;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .metric-card:active {
+            transform: translateY(-2px);
+        }
+
+        .metric-card.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .metric-card.success:hover {
+            box-shadow: 0 12px 24px rgba(16, 185, 129, 0.4);
+        }
+
+        .metric-card.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .metric-card.warning:hover {
+            box-shadow: 0 12px 24px rgba(245, 158, 11, 0.4);
+        }
+
+        .metric-card.danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .metric-card.danger:hover {
+            box-shadow: 0 12px 24px rgba(239, 68, 68, 0.4);
+        }
+
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .toast {
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .input-field {
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .input-field:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .table-row:hover {
+            background: #f8fafc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #0c2d6b;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .receipt-container {
+            width: 80mm;
+            margin: 0 auto;
+            background: white;
+            padding: 10mm;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        @media print {
+           body {
+        background: white;
+        margin: 0;
+        padding: 0;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    /* Allow full-length receipts */
+    .receipt-container {
+        box-shadow: none !important;
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 auto !important;
+        padding: 5mm !important;
+        font-size: 12px !important;
+        line-height: 1.4;
+        page-break-inside: avoid !important;
+        overflow: visible !important;
+    }
+
+    /* Ensure tables and divs don't get cut */
+    .receipt-container table,
+    .receipt-container tr,
+    .receipt-container td,
+    .receipt-container div {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* Let the browser automatically add pages */
+    @page {
+        size: auto;
+        margin: 5mm;
+    }
+            * {
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th, td {
+                padding: 2mm 0 !important;
+                text-align: left;
+            }
+            .receipt-container table thead {
+                border-bottom: 1px solid #000;
+            }
+            .receipt-container table tbody tr {
+                border-bottom: none;
+            }
+            .receipt-container .border-b {
+                border-bottom: 1px dashed #000 !important;
+            }
+            .receipt-container .border-t {
+                border-top: 1px dashed #000 !important;
+            }
+            .modal-header,
+  .modal-title,
+  .close,
+  .btn-close {
+    display: none !important;
+  }
+
+  /* optional: remove background dimming or overlays when printing */
+  .modal-backdrop,
+  #overlay {
+    display: none !important;
+  }
+
+  /* ensure receipt fits page */
+  #receiptModal, .modal-content, .modal-body {
+    position: relative !important;
+    box-shadow: none !important;
+  }
+            
+        }
+
+        .clock-status {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .clock-status.clocked-in {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .clock-status.clocked-out {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .pricing-option {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .pricing-option label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .pricing-option input[type="radio"] {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="flex h-screen bg-gray-100">
+        <!-- Sidebar -->
+        <div id="sidebar" class="sidebar w-64 text-white flex flex-col hidden">
+            <div class="p-6 border-b border-gray-700">
+                <h1 class="text-2xl font-bold">GODC Laundry</h1>
+                <p class="text-sm text-gray-400 mt-1">POS & Inventory</p>
+            </div>
+
+            <nav id="nav-menu" class="flex-1 overflow-y-auto p-4 space-y-2">
+                <!-- Navigation items will be populated by JavaScript -->
+            </nav>
+
+            <div class="p-4 border-t border-gray-700">
+                <div id="user-info" class="text-sm mb-4">
+                    <!-- User info will be populated -->
+                </div>
+                <div id="clock-in-out-section" class="mb-4">
+                    <!-- Clock in/out button will be here for cashiers -->
+                </div>
+                <button onclick="handleLogout()" class="w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition">
+                    Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Bar -->
+            <div id="top-bar" class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center hidden">
+                <div class="flex items-center space-x-4">
+                    <button onclick="toggleSidebar()" class="md:hidden p-2 hover:bg-gray-100 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <h2 id="page-title" class="text-2xl font-bold text-gray-800">Dashboard</h2>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="clock" class="text-sm text-gray-600 font-mono"></div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="content" class="flex-1 overflow-auto p-6">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal-overlay fixed inset-0 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800"></h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="modal-content" class="p-6">
+                <!-- Modal content will be populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-4 right-4 space-y-2 z-40">
+        <!-- Toasts will be added here -->
+    </div>
+
+    <script>
+        // ==================== APP STATE ====================
+        const appState = {
+            currentUser: null,
+            currentView: 'login',
+            users: [],
+            services: [],
+            consumables: [],
+            inventory: [],
+            orders: [],
+            customers: [],
+            shifts: [],
+            expenses: [],
+            transactions: [],
+            settings: {
+                businessName: 'GODC Laundry',
+                currency: '₱',
+                phone: '+1-800-LAUNDRY',
+                email: 'info@godclaundry.com',
+                address: '123 Main St, City, State',
+                perKiloPrice: 35
+            },
+            notifications: [],
+            pendingAction: null
+        };
+
+        // ==================== INITIALIZATION ====================
+        function initializeApp() {
+            loadFromLocalStorage();
+            initializeSampleData();
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderLoginView();
+        }
+
+        function initializeSampleData() {
+            if (appState.users.length === 0) {
+                appState.users = [
+                    {
+                        id: 'user-1',
+                        username: 'admin',
+                        password: 'password',
+                        role: 'Admin',
+                        email: 'admin@godclaundry.com',
+                        securityQuestion: 'What is your favorite color?',
+                        securityAnswer: 'blue',
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 'user-2',
+                        username: 'cashier',
+                        password: 'password',
+                        role: 'Cashier',
+                        email: 'cashier@godclaundry.com',
+                        securityQuestion: 'What is your pet\'s name?',
+                        securityAnswer: 'fluffy',
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+            }
+
+            if (appState.services.length === 0) {
+                appState.services = [
+                    { id: 'svc-1', name: 'Wash-Dry-fold', price: 140, category: 'Washing', duration: 40 },
+                    { id: 'svc-2', name: 'Wash/Dry', price: 115, category: 'Washing', duration: 30 },
+                ];
+            }
+
+            if (appState.consumables.length === 0) {
+                appState.consumables = [
+                    { id: 'cons-1', name: 'Ariel Liquid', quantity: 100, minStock: 10, price: 20, unit: 'pc' },
+                    { id: 'cons-2', name: 'Ariel Powder', quantity: 100, minStock: 10, price: 20, unit: 'pc' },
+                    { id: 'cons-3', name: 'Breeze Powder', quantity: 100, minStock: 10, price: 20, unit: 'pc' },
+                    { id: 'cons-4', name: 'Downy fabcon', quantity: 100, minStock: 10, price: 13, unit: 'pc' },
+                    { id: 'cons-2', name: 'Del Fabcon', quantity: 100, minStock: 10, price: 10, unit: 'pc' },
+                    { id: 'cons-2', name: 'Champion Fabcon', quantity: 100, minStock: 10, price: 20, unit: 'pc' }
+                ];
+            }
+
+            if (appState.inventory.length === 0) {
+                appState.inventory = [
+                    { id: 'inv-1', name: 'Plastic Bags (100pc)', quantity: 200, minStock: 50, price: 5.99, category: 'Packaging' },
+                    { id: 'inv-2', name: 'Hangers (50pc)', quantity: 150, minStock: 30, price: 12.99, category: 'Packaging' }
+                ];
+            }
+
+            saveToLocalStorage();
+        }
+
+        // ==================== LOCAL STORAGE ====================
+        function saveToLocalStorage() {
+            localStorage.setItem('godcLaundryData', JSON.stringify(appState));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('godcLaundryData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                Object.assign(appState, data);
+            }
+        }
+
+        function showAdminPasswordVerification(actionCallback, actionName = 'action') {
+    const formHtml = `
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p class="text-sm text-red-800">
+                <strong>⚠️ Admin Verification Required</strong><br/>
+                This is a sensitive operation. Please enter your admin password to proceed.
+            </p>
+        </div>
+        <form id="admin-verify-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Admin Password</label>
+                <input type="password" id="admin-password-verify" placeholder="Enter admin password" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required autofocus>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">Verify & Proceed</button>
+            </div>
+        </form>
+    `;
+
+    showModal(formHtml, `Confirm - ${actionName}`);
+
+    document.getElementById('admin-verify-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const enteredPassword = document.getElementById('admin-password-verify').value.trim();
+
+        // ✔ Only allow verification if the entered password matches CURRENT LOGGED-IN ADMIN
+        if (enteredPassword === appState.currentUser.password) {
+            closeModal();
+            actionCallback();
+        } else {
+            showToast("Incorrect admin password", "error");
+        }
+    });
+}
+
+
+
+        // ==================== AUTHENTICATION ====================
+        function renderLoginView() {
+            appState.currentView = 'login';
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="flex items-center justify-center h-full">
+                    <div class="card w-full max-w-md p-8">
+                        <div class="text-center mb-8">
+                            <h1 class="text-3xl font-bold text-gray-800">GODC Laundry</h1>
+                            <p class="text-gray-600 mt-2">POS & Inventory System</p>
+                        </div>
+
+                        <form id="login-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input type="text" id="login-username" placeholder="Enter username" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                                <input type="password" id="login-password" placeholder="Enter password" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <button type="submit" class="btn-primary w-full px-4 py-2 text-white rounded-lg font-medium">
+                                Login
+                            </button>
+                        </form>
+
+                        <div class="mt-6 text-center">
+                            <button onclick="renderForgotPasswordView()" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                Forgot Password?
+                            </button>
+                        </div>
+
+                        <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <p class="text-xs text-gray-600 mb-2"><strong>Demo Credentials:</strong></p>
+                            <p class="text-xs text-gray-600">Admin: admin / password</p>
+                            <p class="text-xs text-gray-600">Cashier: cashier / password</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            const user = appState.users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+
+            if (user) {
+                appState.currentUser = user;
+                
+                document.getElementById('sidebar').classList.remove('hidden');
+                document.getElementById('sidebar').classList.add('md:flex');
+                document.getElementById('top-bar').classList.remove('hidden');
+                
+                if (user.role === 'Cashier') {
+                    appState.currentView = 'pos';
+                    renderPOS();
+                } else {
+                    appState.currentView = 'dashboard';
+                    renderDashboard();
+                }
+                
+                showToast(`Welcome back, ${user.username}!`, 'success');
+            } else {
+                showToast('Invalid username or password', 'error');
+            }
+        }
+
+        function renderForgotPasswordView() {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="flex items-center justify-center h-full">
+                    <div class="card w-full max-w-md p-8">
+                        <div class="text-center mb-8">
+                            <h1 class="text-2xl font-bold text-gray-800">Reset Password</h1>
+                            <p class="text-gray-600 mt-2">Enter your username to recover your account</p>
+                        </div>
+
+                        <form id="forgot-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input type="text" id="forgot-username" placeholder="Enter your username" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <button type="submit" class="btn-primary w-full px-4 py-2 text-white rounded-lg font-medium">
+                                Continue
+                            </button>
+                        </form>
+
+                        <div class="mt-6 text-center">
+                            <button onclick="renderLoginView()" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                Back to Login
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('forgot-form').addEventListener('submit', handleForgotPassword);
+        }
+
+        function handleForgotPassword(e) {
+            e.preventDefault();
+            const username = document.getElementById('forgot-username').value.trim();
+            const user = appState.users.find(u => u.username.toLowerCase() === username.toLowerCase());
+
+            if (!user) {
+                showToast('Username not found', 'error');
+                return;
+            }
+
+            renderSecurityQuestionView(user);
+        }
+
+        function renderSecurityQuestionView(user) {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="flex items-center justify-center h-full">
+                    <div class="card w-full max-w-md p-8">
+                        <div class="text-center mb-8">
+                            <h1 class="text-2xl font-bold text-gray-800">Verify Identity</h1>
+                            <p class="text-gray-600 mt-2">Answer your security question</p>
+                        </div>
+
+                        <form id="security-form" class="space-y-4">
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <p class="text-sm font-medium text-gray-700">${user.securityQuestion}</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Your Answer</label>
+                                <input type="text" id="security-answer" placeholder="Enter your answer" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <button type="submit" class="btn-primary w-full px-4 py-2 text-white rounded-lg font-medium">
+                                Verify
+                            </button>
+                        </form>
+
+                        <div class="mt-6 text-center">
+                            <button onclick="renderForgotPasswordView()" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                Back
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('security-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const answer = document.getElementById('security-answer').value.trim().toLowerCase();
+
+                if (answer === user.securityAnswer) {
+                    renderResetPasswordView(user);
+                } else {
+                    showToast('Incorrect answer', 'error');
+                }
+            });
+        }
+
+        function renderResetPasswordView(user) {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="flex items-center justify-center h-full">
+                    <div class="card w-full max-w-md p-8">
+                        <div class="text-center mb-8">
+                            <h1 class="text-2xl font-bold text-gray-800">Create New Password</h1>
+                            <p class="text-gray-600 mt-2">Enter a new password for your account</p>
+                        </div>
+
+                        <form id="reset-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                                <input type="password" id="new-password" placeholder="Enter new password" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                                <input type="password" id="confirm-password" placeholder="Confirm password" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <button type="submit" class="btn-primary w-full px-4 py-2 text-white rounded-lg font-medium">
+                                Reset Password
+                            </button>
+                        </form>
+
+                        <div class="mt-6 text-center">
+                            <button onclick="renderLoginView()" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                Back to Login
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('reset-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newPassword = document.getElementById('new-password').value;
+                const confirmPassword = document.getElementById('confirm-password').value;
+
+                if (newPassword !== confirmPassword) {
+                    showToast('Passwords do not match', 'error');
+                    return;
+                }
+
+                if (newPassword.length < 6) {
+                    showToast('Password must be at least 6 characters', 'error');
+                    return;
+                }
+
+                user.password = newPassword;
+                saveToLocalStorage();
+                showToast('Password reset successfully! Please login with your new password.', 'success');
+                setTimeout(() => renderLoginView(), 2000);
+            });
+        }
+
+        function handleLogout() {
+            if (appState.currentUser && appState.currentUser.role === 'Cashier') {
+                const currentShift = appState.shifts.find(s => s.userId === appState.currentUser.id && !s.clockOutTime);
+                if (currentShift) {
+                    showToast('Please clock out before logging out', 'error');
+                    return;
+                }
+            }
+
+            appState.currentUser = null;
+            appState.currentView = 'login';
+            
+            document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('md:flex');
+            document.getElementById('top-bar').classList.add('hidden');
+            
+            renderLoginView();
+            showToast('Logged out successfully', 'success');
+        }
+
+        // ==================== CLOCK IN/OUT SYSTEM ====================
+        function clockInOut() {
+            if (!appState.currentUser || appState.currentUser.role !== 'Cashier') return;
+
+            const currentShift = appState.shifts.find(s => s.userId === appState.currentUser.id && !s.clockOutTime);
+
+            if (currentShift) {
+                currentShift.clockOutTime = new Date().toISOString();
+                showToast('Clocked out successfully', 'success');
+            } else {
+                const newShift = {
+                    id: generateUniqueId('shift'),
+                    userId: appState.currentUser.id,
+                    username: appState.currentUser.username,
+                    clockInTime: new Date().toISOString(),
+                    clockOutTime: null
+                };
+                appState.shifts.push(newShift);
+                showToast('Clocked in successfully', 'success');
+            }
+
+            saveToLocalStorage();
+            updateClockInOutButton();
+            if (appState.currentView === 'pos') {
+                renderPOS();
+            }
+        }
+
+        function updateClockInOutButton() {
+            const section = document.getElementById('clock-in-out-section');
+            if (!appState.currentUser || appState.currentUser.role !== 'Cashier') {
+                section.innerHTML = '';
+                return;
+            }
+
+            const currentShift = appState.shifts.find(s => s.userId === appState.currentUser.id && !s.clockOutTime);
+            const isClockedIn = !!currentShift;
+
+            section.innerHTML = `
+                <button onclick="clockInOut()" class="w-full px-4 py-2 ${isClockedIn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-lg transition font-medium text-sm">
+                    ${isClockedIn ? 'Clock Out' : 'Clock In'}
+                </button>
+            `;
+        }
+
+        // ==================== DASHBOARD ====================
+        function handleMetricCardClick(cardType) {
+            switch(cardType) {
+                case 'revenue':
+                    // Calculate today's revenue and show popup
+                    const today = new Date().toISOString().split('T')[0];
+                    const todayOrders = appState.orders.filter(o => o.date === today);
+                    let totalRevenue = 0;
+                    todayOrders.forEach(order => {
+                        order.items.forEach(item => {
+                            totalRevenue += item.price * item.quantity;
+                        });
+                    });
+                    const currencySymbol = appState.settings.currency || '$';
+                    const revenueModal = `
+                        <div class="text-center py-8">
+                            <p class="text-gray-600 mb-4">Today's Revenue</p>
+                            <p class="text-5xl font-bold text-purple-600">${currencySymbol}${totalRevenue.toFixed(2)}</p>
+                            <p class="text-gray-500 mt-4">${todayOrders.length} orders today</p>
+                        </div>
+                    `;
+                    showModal(revenueModal, "Today's Revenue");
+                    break;
+                    
+                case 'orders':
+                    // Navigate to reports tab
+                    renderView('reports');
+                    showToast('Navigating to Reports', 'info');
+                    break;
+                    
+                case 'lowstock':
+                    // Navigate to inventory tab and highlight low stock items for 5 seconds
+                    renderView('inventory');
+                    showToast('Showing low stock items', 'info');
+                    setTimeout(() => {
+                        const lowStockRows = document.querySelectorAll('tr');
+                        lowStockRows.forEach(row => {
+                            const statusCell = row.querySelector('td:nth-child(5)');
+                            if (statusCell && statusCell.textContent.includes('Low Stock')) {
+                                row.style.backgroundColor = 'rgba(254, 242, 202, 0.8)';
+                                row.style.transition = 'background-color 0.3s ease';
+                            }
+                        });
+                        
+                        // Remove highlight after 5 seconds
+                        setTimeout(() => {
+                            lowStockRows.forEach(row => {
+                                const statusCell = row.querySelector('td:nth-child(5)');
+                                if (statusCell && statusCell.textContent.includes('Low Stock')) {
+                                    row.style.backgroundColor = '';
+                                }
+                            });
+                        }, 5000);
+                    }, 100);
+                    break;
+                    
+                case 'users':
+                    // Navigate to users tab
+                    renderView('users');
+                    showToast('Navigating to Users', 'info');
+                    break;
+            }
+        }
+
+        function renderDashboard() {
+            appState.currentView = 'dashboard';
+            updateSidebar();
+            updatePageTitle('Dashboard');
+
+            const today = new Date().toISOString().split('T')[0];
+            const todayOrders = appState.orders.filter(o => o.date === today);
+            const todayRevenue = todayOrders.reduce((sum, o) => sum + o.total, 0);
+            
+
+                const lowStockItems = [
+    ...appState.inventory.filter(i => i.quantity <= i.minStock),
+    ...appState.consumables.filter(c => c.quantity <= c.minStock)
+];
+
+
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="space-y-6 fade-in">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <button class="metric-card" onclick="handleMetricCardClick('revenue')">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm opacity-90">Today's Revenue</p>
+                                    <p class="text-3xl font-bold mt-2">${appState.settings.currency}${todayRevenue.toFixed(2)}</p>
+                                </div>
+                                <svg class="w-8 h-8 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M8.16 2.75a.75.75 0 00-1.32 0l-3.5 9.5A.75.75 0 003.75 13h12.5a.75.75 0 00.66-1.25l-3.5-9.5z"></path>
+                                </svg>
+                            </div>
+                        </button>
+
+                        <button class="metric-card success" onclick="handleMetricCardClick('orders')">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm opacity-90">Total Orders</p>
+                                    <p class="text-3xl font-bold mt-2">${todayOrders.length}</p>
+                                </div>
+                                <svg class="w-8 h-8 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4z"></path>
+                                </svg>
+                            </div>
+                        </button>
+
+                        <button class="metric-card warning" onclick="handleMetricCardClick('lowstock')">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm opacity-90">Low Stock Items</p>
+                                    <p class="text-3xl font-bold mt-2">${lowStockItems.length}</p>
+                                </div>
+                                <svg class="w-8 h-8 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"></path>
+                                </svg>
+                            </div>
+                        </button>
+
+                        <button class="metric-card danger" onclick="handleMetricCardClick('users')">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm opacity-90">Active Users</p>
+                                    <p class="text-3xl font-bold mt-2">${appState.users.length}</p>
+                                </div>
+                                <svg class="w-8 h-8 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 9a3 3 0 100-6 3 3 0 000 6z"></path>
+                                </svg>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Quick Actions</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button onclick="renderView('pos')" class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-left">
+                                <svg class="w-6 h-6 text-blue-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p class="font-medium text-gray-800">New Sale</p>
+                                <p class="text-sm text-gray-600">Process a new order</p>
+                            </button>
+
+                            <button onclick="renderView('reports')" class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-left">
+                                <svg class="w-6 h-6 text-blue-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                <p class="font-medium text-gray-800">Reports</p>
+                                <p class="text-sm text-gray-600">View analytics</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Recent Orders</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Order ID</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Customer</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Amount</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Status</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${todayOrders.slice(-5).reverse().map(order => `
+                                        <tr class="table-row border-b border-gray-200">
+                                            <td class="px-4 py-3 font-medium">${order.id}</td>
+                                            <td class="px-4 py-3">${order.customerName}</td>
+                                            <td class="px-4 py-3 font-medium">${appState.settings.currency}${order.total.toFixed(2)}</td>
+                                            <td class="px-4 py-3"><span class="badge badge-success">${order.status}</span></td>
+                                            <td class="px-4 py-3 text-gray-600">${new Date(order.timestamp).toLocaleTimeString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    ${lowStockItems.length > 0 ? `
+                        <div class="card p-6 border-l-4 border-yellow-500 bg-yellow-50">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Low Stock Alert</h3>
+                            <div class="space-y-2">
+                                ${lowStockItems.map(item => `
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-700">${item.name}</span>
+                                        <span class="badge badge-warning">${item.quantity} units</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // ==================== POS SYSTEM ====================
+        function renderPOS() {
+            if (appState.currentUser.role === 'Cashier') {
+                const currentShift = appState.shifts.find(s => s.userId === appState.currentUser.id && !s.clockOutTime);
+                if (!currentShift) {
+                    appState.currentView = 'pos';
+                    updateSidebar();
+                    updatePageTitle('Point of Sale');
+                    
+                    const content = document.getElementById('content');
+                    content.innerHTML = `
+                        <div class="flex items-center justify-center h-full">
+                            <div class="card w-full max-w-md p-8 text-center">
+                                <svg class="w-16 h-16 text-yellow-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <h2 class="text-2xl font-bold text-gray-800 mb-2">Clock In Required</h2>
+                                <p class="text-gray-600 mb-6">You need to clock in before you can start using the Point of Sale system.</p>
+                                <p class="text-sm text-gray-500">Click the "Clock In" button in the sidebar to begin your shift.</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+            }
+
+            appState.currentView = 'pos';
+            updateSidebar();
+            updatePageTitle('Point of Sale');
+
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 fade-in">
+                    <!-- Services Menu -->
+                    <div class="lg:col-span-2">
+                        <div class="card p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-gray-800">Available Services</h3>
+                                <!-- Added admin-protected buttons for Add Service and Manage Services -->
+                                ${appState.currentUser.role === 'Admin' ? `
+                                    <div class="flex gap-2">
+                                        <button onclick="handleAddServiceClick()" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition">
+                                            + Add Service
+                                        </button>
+                                        <button onclick="handleManageServicesClick()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">
+                                            Manage Services
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                ${appState.services.map(service => `
+                                    <button onclick="showServiceDetailsModal('${service.id}')" class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-left">
+                                        <p class="font-medium text-gray-800">${service.name}</p>
+                                        <p class="text-sm text-gray-600">${service.category}</p>
+                                        <p class="text-2xl font-bold text-blue-600 mt-2">${appState.settings.currency}${service.price.toFixed(2)}</p>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Summary -->
+                    <div class="lg:col-span-1">
+                        <div class="card p-6 sticky top-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Order Summary</h3>
+
+                            <!-- Add customer search and creation -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Search Customer</label>
+                                <input type="text" id="customer-search" placeholder="Search by name or phone" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none mb-2" onkeyup="filterCustomers()">
+                                <select id="customer-select" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none mb-2">
+                                    <option value="">-- Select Customer --</option>
+                                    ${appState.customers.map(c => `<option value="${c.id}">${c.name} (${c.phone})</option>`).join('')}
+                                </select>
+                                <button onclick="showAddCustomerModal()" class="w-full px-3 py-2 border-2 border-blue-600 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50">
+                                    + Add Customer
+                                </button>
+                            </div>
+
+                            <div id="cart-items" class="space-y-2 mb-4 max-h-64 overflow-y-auto">
+                                <!-- Cart items will be added here -->
+                            </div>
+
+                            <div class="border-t border-gray-200 pt-4 space-y-2">
+                                <div class="flex justify-between text-gray-700">
+                                    <span>Subtotal:</span>
+                                    <span id="subtotal">${appState.settings.currency}0.00</span>
+                                </div>
+                                <div class="flex justify-between text-lg font-bold text-gray-800 border-t border-gray-200 pt-2">
+                                    <span>Total:</span>
+                                    <span id="total">${appState.settings.currency}0.00</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 space-y-2">
+                                <button onclick="processPayment()" class="btn-primary w-full px-4 py-2 text-white rounded-lg font-medium">
+                                    Process Payment
+                                </button>
+                                <button onclick="clearCart()" class="w-full px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
+                                    Clear Cart
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.currentCart = [];
+            updateCartDisplay();
+        }
+
+        function handleAddServiceClick() {
+            showAdminPasswordVerification(showAddServiceModal, 'Add New Service');
+        }
+
+        function handleManageServicesClick() {
+            showAdminPasswordVerification(showManageServicesModal, 'Manage Services');
+        }
+
+        function showManageServicesModal() {
+            let servicesHtml = `
+                <div class="space-y-4 max-h-96 overflow-y-auto">
+                    ${appState.services.length === 0 ? `
+                        <p class="text-gray-600 text-center py-8">No services available. Create one to get started.</p>
+                    ` : appState.services.map(service => `
+                        <div class="border border-gray-200 rounded-lg p-4 flex justify-between items-start gap-4">
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-800">${service.name}</p>
+                                <p class="text-sm text-gray-600">Category: ${service.category}</p>
+                                <p class="text-lg font-bold text-blue-600 mt-2">${appState.settings.currency}${service.price.toFixed(2)}</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="showEditServiceModal('${service.id}')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium">
+                                    Edit
+                                </button>
+                                <button onclick="handleDeleteService('${service.id}')" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="flex justify-end mt-6 pt-4 border-t">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Close</button>
+                </div>
+            `;
+
+            showModal(servicesHtml, 'Manage Services');
+        }
+
+        function handleDeleteService(serviceId) {
+            showAdminPasswordVerification(() => deleteService(serviceId), 'Delete Service');
+        }
+
+        function showEditServiceModal(serviceId) {
+            const service = appState.services.find(s => s.id === serviceId);
+            if (!service) return;
+
+            const formHtml = `
+                <form id="edit-service-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Service Name</label>
+                        <input type="text" id="service-name" value="${service.name}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Base Price (for 8kg)</label>
+                        <input type="number" id="service-price" value="${service.price}" step="0.01" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                        <select id="service-category" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            <option value="Washing" ${service.category === 'Washing' ? 'selected' : ''}>Washing</option>
+                            <option value="Dry Cleaning" ${service.category === 'Dry Cleaning' ? 'selected' : ''}>Dry Cleaning</option>
+                            <option value="Finishing" ${service.category === 'Finishing' ? 'selected' : ''}>Finishing</option>
+                            <option value="Express" ${service.category === 'Express' ? 'selected' : ''}>Express</option>
+                            <option value="Other" ${service.category === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                        <textarea id="service-description" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" rows="3">${service.description || ''}</textarea>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Update Service</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Edit Service');
+
+            document.getElementById('edit-service-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                service.name = document.getElementById('service-name').value;
+                service.price = parseFloat(document.getElementById('service-price').value);
+                service.category = document.getElementById('service-category').value;
+                service.description = document.getElementById('service-description').value || '';
+
+                saveToLocalStorage();
+                closeModal();
+                renderPOS();
+                showToast('Service updated successfully', 'success');
+            });
+        }
+
+        function deleteService(serviceId) {
+            appState.services = appState.services.filter(s => s.id !== serviceId);
+            saveToLocalStorage();
+            renderPOS();
+            showToast('Service deleted successfully', 'success');
+        }
+
+        function showAddCustomerModal() {
+            const formHtml = `
+                <form id="add-customer-pos-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                        <input type="text" id="cust-name-pos" placeholder="Enter customer name" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                        <input type="tel" id="cust-phone-pos" placeholder="Enter phone number" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
+                        <input type="email" id="cust-email-pos" placeholder="Enter email address" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none">
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Add Customer</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Add Customer');
+
+            document.getElementById('add-customer-pos-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newCustomer = {
+                    id: generateUniqueId('cust'),
+                    name: document.getElementById('cust-name-pos').value,
+                    phone: document.getElementById('cust-phone-pos').value,
+                    email: document.getElementById('cust-email-pos').value || '',
+                    totalSpent: 0
+                };
+
+                appState.customers.push(newCustomer);
+                saveToLocalStorage();
+                closeModal();
+                
+                const select = document.getElementById('customer-select');
+                const option = document.createElement('option');
+                option.value = newCustomer.id;
+                option.textContent = `${newCustomer.name} (${newCustomer.phone})`;
+                select.appendChild(option);
+                select.value = newCustomer.id;
+                
+                showToast('Customer added successfully', 'success');
+            });
+        }
+
+        function filterCustomers() {
+            const searchTerm = document.getElementById('customer-search').value.toLowerCase();
+            const select = document.getElementById('customer-select');
+            
+            if (searchTerm) {
+                const filtered = appState.customers.filter(c => 
+                    c.name.toLowerCase().includes(searchTerm) || 
+                    c.phone.includes(searchTerm)
+                );
+                
+                if (filtered.length > 0) {
+                    select.value = filtered[0].id;
+                }
+            }
+        }
+
+        function showServiceDetailsModal(serviceId) {
+            const service = appState.services.find(s => s.id === serviceId);
+            if (!service) return;
+
+            const isDryCleaningOrIroning = service.name === 'Dry Cleaning' || service.name === 'Ironing';
+            const PESO_PER_KG = appState.settings.perKiloPrice;
+            const BASE_KG = 8;
+
+            const formHtml = `
+                <form id="service-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Service: ${service.name}</label>
+                        <p class="text-sm text-gray-600">Base Price: ${appState.settings.currency}${service.price.toFixed(2)} (for up to ${BASE_KG}kg)</p>
+                    </div>
+
+                    <div id="kilo-input-section">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
+                        <input type="number" id="kilo-quantity" placeholder="Enter weight in kg" min="1" step="1" value="${BASE_KG}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" onchange="updateKiloPrice()">
+                        <p class="text-sm text-gray-600 mt-2">
+                            <span id="pricing-breakdown"></span>
+                        </p>
+                        <p class="text-sm text-gray-600 mt-1">Total: <span id="kilo-total-price" class="font-bold">${appState.settings.currency}${service.price.toFixed(2)}</span></p>
+                    </div>
+
+                    ${!isDryCleaningOrIroning ? `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Detergent/Soap</label>
+                            <select id="consumable-select" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required onchange="updateConsumablePrice()">
+                                <option value="">-- Choose a consumable --</option>
+                                ${appState.consumables.map(c => `
+                                    <option value="${c.id}" ${c.quantity > 0 ? '' : 'disabled'}>
+                                        ${c.name} (${c.quantity} ${c.unit} available) - ${appState.settings.currency}${c.price.toFixed(2)}/${c.unit}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantity to Use (pieces)</label>
+                            <input type="number" id="consumable-qty" placeholder="e.g., 1" min="1" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required onchange="updateConsumablePrice()">
+                            <p class="text-sm text-gray-600 mt-2">Consumable Price: <span id="consumable-price">${appState.settings.currency}0.00</span></p>
+                        </div>
+                    ` : `
+                        <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p class="text-sm text-blue-800">This service does not require consumable selection.</p>
+                        </div>
+                    `}
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Add to Cart</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, `Add ${service.name} to Cart`);
+
+            window.updateKiloPrice = function() {
+                const kiloQty = parseFloat(document.getElementById('kilo-quantity').value) || BASE_KG;
+                let totalPrice = service.price;
+                let breakdown = `${BASE_KG}kg @ ${appState.settings.currency}${service.price}`;
+                
+                if (kiloQty > BASE_KG) {
+                    const extraKg = kiloQty - BASE_KG;
+                    const extraPrice = extraKg * PESO_PER_KG;
+                    totalPrice = service.price + extraPrice;
+                    breakdown = `${BASE_KG}kg @ ${appState.settings.currency}${service.price} + ${extraKg}kg @ ${appState.settings.currency}${PESO_PER_KG}/kg`;
+                }
+                
+                document.getElementById('pricing-breakdown').textContent = breakdown;
+                document.getElementById('kilo-total-price').textContent = `${appState.settings.currency}${totalPrice.toFixed(2)}`;
+            };
+
+            window.updateConsumablePrice = function() {
+                const consumableId = document.getElementById('consumable-select').value;
+                const qty = parseInt(document.getElementById('consumable-qty').value) || 0;
+                
+                if (consumableId) {
+                    const consumable = appState.consumables.find(c => c.id === consumableId);
+                    if (consumable) {
+                        const price = consumable.price * qty;
+                        document.getElementById('consumable-price').textContent = `${appState.settings.currency}${price.toFixed(2)}`;
+                    }
+                }
+            };
+
+            document.getElementById('service-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                const kiloQty = parseFloat(document.getElementById('kilo-quantity').value) || BASE_KG;
+                let finalPrice = service.price;
+                
+                if (kiloQty > BASE_KG) {
+                    const extraKg = kiloQty - BASE_KG;
+                    finalPrice = service.price + (extraKg * PESO_PER_KG);
+                }
+
+                const pricingInfo = { type: 'per-kilo', kg: kiloQty };
+
+                if (isDryCleaningOrIroning) {
+                    window.currentCart.push({
+                        ...service,
+                        price: finalPrice,
+                        cartItemId: generateUniqueId('cart'),
+                        consumable: null,
+                        consumableQty: 0,
+                        consumablePrice: 0,
+                        pricingInfo
+                    });
+                } else {
+                    const consumableId = document.getElementById('consumable-select').value;
+                    const quantity = parseInt(document.getElementById('consumable-qty').value);
+
+                    if (!consumableId) {
+                        showToast('Please select a consumable', 'error');
+                        return;
+                    }
+
+                    const consumable = appState.consumables.find(c => c.id === consumableId);
+                    if (!consumable) {
+                        showToast('Consumable not found', 'error');
+                        return;
+                    }
+
+                    if (quantity > consumable.quantity) {
+                        showToast(`Only ${consumable.quantity} ${consumable.unit} available`, 'error');
+                        return;
+                    }
+
+                    const consumablePrice = consumable.price * quantity;
+                    const totalPrice = finalPrice + consumablePrice;
+
+                    window.currentCart.push({
+                        ...service,
+                        price: totalPrice,
+                        cartItemId: generateUniqueId('cart'),
+                        consumable: consumable,
+                        consumableQty: quantity,
+                        consumablePrice: consumablePrice,
+                        pricingInfo
+                    });
+                }
+
+                updateCartDisplay();
+                closeModal();
+                showToast(`${service.name} added to cart`, 'success');
+            });
+        }
+
+        function removeFromCart(cartItemId) {
+            window.currentCart = window.currentCart.filter(item => item.cartItemId !== cartItemId);
+            updateCartDisplay();
+        }
+
+        function updateCartDisplay() {
+            const cartItems = document.getElementById('cart-items');
+            const subtotal = window.currentCart.reduce((sum, item) => sum + item.price, 0);
+            const total = subtotal;
+
+            cartItems.innerHTML = window.currentCart.map(item => `
+                <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-800">${item.name}</p>
+                        ${item.pricingInfo && item.pricingInfo.type === 'per-kilo' ? 
+                            `<p class="text-xs text-gray-600">${item.pricingInfo.kg}kg</p>` : 
+                            ''}
+                        ${item.consumable ? `
+                            <p class="text-xs text-gray-600">${item.consumable.name} (${item.consumableQty}pc)</p>
+                        ` : ''}
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-medium text-gray-800">${appState.settings.currency}${item.price.toFixed(2)}</p>
+                        <button onclick="removeFromCart('${item.cartItemId}')" class="text-xs text-red-600 hover:text-red-700">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('subtotal').textContent = `${appState.settings.currency}${subtotal.toFixed(2)}`;
+            document.getElementById('total').textContent = `${appState.settings.currency}${total.toFixed(2)}`;
+        }
+
+        function processPayment() {
+            if (window.currentCart.length === 0) {
+                showToast('Cart is empty', 'error');
+                return;
+            }
+
+            const customerId = document.getElementById('customer-select').value;
+            
+            if (!customerId) {
+                showToast('Please select a customer before processing payment', 'error');
+                return;
+            }
+
+            const subtotal = window.currentCart.reduce((sum, item) => sum + item.price, 0);
+            const total = subtotal;
+            const customer = appState.customers.find(c => c.id === customerId);
+
+            const order = {
+                id: generateUniqueId('order'),
+                items: window.currentCart.map(({ cartItemId, ...item }) => item),
+                subtotal,
+                total,
+                customerId: customerId,
+                customerName: customer ? customer.name : 'Unknown',
+                status: 'Completed',
+                date: new Date().toISOString().split('T')[0],
+                timestamp: new Date().toISOString(),
+                cashier: appState.currentUser.username,
+                paymentMethod: 'Cash'
+            };
+
+            window.currentCart.forEach(item => {
+                if (item.consumable) {
+                    const consumable = appState.consumables.find(c => c.id === item.consumable.id);
+                    if (consumable) {
+                        consumable.quantity -= item.consumableQty;
+                    }
+                }
+            });
+
+            appState.orders.push(order);
+            appState.transactions.push({
+                id: generateUniqueId('trans'),
+                orderId: order.id,
+                amount: total,
+                type: 'Sale',
+                timestamp: order.timestamp
+            });
+
+            if (customer) {
+                customer.totalSpent += total;
+            }
+
+            saveToLocalStorage();
+            showReceiptModal(order);
+            window.currentCart = [];
+            updateCartDisplay();
+        }
+
+        function showAddServiceModal() {
+            const formHtml = `
+                <form id="add-service-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Service Name</label>
+                        <input type="text" id="service-name" placeholder="e.g., Heavy Wash, Premium Wash" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Base Price (for 8kg)</label>
+                        <input type="number" id="service-price" placeholder="Enter base price" step="0.01" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                        <select id="service-category" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            <option value="">-- Select Category --</option>
+                            <option value="Washing">Washing</option>
+                            <option value="Dry Cleaning">Dry Cleaning</option>
+                            <option value="Finishing">Finishing</option>
+                            <option value="Express">Express</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Add Service</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Add Available Service');
+
+            document.getElementById('add-service-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const newService = {
+                    id: generateUniqueId('svc'),
+                    name: document.getElementById('service-name').value,
+                    price: parseFloat(document.getElementById('service-price').value),
+                    category: document.getElementById('service-category').value,
+                    duration: 30,
+                    description: document.getElementById('service-description').value || ''
+                };
+
+                appState.services.push(newService);
+                saveToLocalStorage();
+                closeModal();
+                renderPOS();
+                showToast('Service added successfully', 'success');
+            });
+        }
+
+        function showReceiptModal(order) {
+    const receiptHtml = `
+        <style>
+            @media print {
+                .no-print {
+                    display: none !important;
+                }
+            }
+        </style>
+
+        <div class="receipt-container">
+            <div class="text-center mb-4 border-b pb-3">
+                <h2 class="text-lg font-bold">${appState.settings.businessName}</h2>
+                <p class="text-xs text-gray-600">${appState.settings.address}</p>
+                <p class="text-xs text-gray-600">${appState.settings.phone}</p>
+            </div>
+
+            <div class="border-b pb-3 mb-3 text-xs">
+                <p><strong>Order ID:</strong> ${order.id}</p>
+                <p><strong>Date:</strong> ${new Date(order.timestamp).toLocaleString()}</p>
+                <p><strong>Cashier:</strong> ${order.cashier}</p>
+                <p><strong>Customer:</strong> ${order.customerName}</p>
+            </div>
+
+            <table class="w-full text-xs mb-3 border-b pb-3">
+                <thead class="border-b">
+                    <tr>
+                        <th class="text-left">Item</th>
+                        <th class="text-right">Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${order.items.map(item => `
+                        <tr>
+                            <td>${item.name}</td>
+                            <td class="text-right">${appState.settings.currency}${item.price.toFixed(2)}</td>
+                        </tr>
+                        ${item.pricingInfo && item.pricingInfo.type === 'per-kilo' ? 
+                            `<tr><td class="text-xs text-gray-600">- ${item.pricingInfo.kg}kg weight</td><td></td></tr>` : 
+                            ''}
+                        ${item.consumable ? `
+                            <tr>
+                                <td class="text-xs text-gray-600">- ${item.consumable.name} (${item.consumableQty}pc)</td>
+                                <td class="text-right text-xs">${appState.settings.currency}${item.consumablePrice.toFixed(2)}</td>
+                            </tr>
+                        ` : ''}
+                    `).join('')}
+                </tbody>
+            </table>
+
+            <div class="border-t pt-3 space-y-1 text-xs">
+                <div class="flex justify-between font-bold">
+                    <span>Total:</span>
+                    <span>${appState.settings.currency}${order.total.toFixed(2)}</span>
+                </div>
+            </div>
+
+            <div class="text-center mt-4 text-xs text-gray-600">
+                <p>Thank you for your business!</p>
+                <p>Please visit again</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 mt-6 no-print">
+            <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Close</button>
+            <button onclick="printReceipt()" class="px-4 py-2 btn-primary text-white rounded-lg">Print Receipt</button>
+        </div>
+    `;
+
+            showModal(receiptHtml, 'Order Receipt');
+        }
+
+     function printReceipt() {
+    window.print();
+}
+
+        function clearCart() {
+            window.currentCart = [];
+            updateCartDisplay();
+            showToast('Cart cleared', 'success');
+        }
+
+        // ==================== INVENTORY MANAGEMENT ====================
+        function renderInventory() {
+            appState.currentView = 'inventory';
+            updateSidebar();
+            updatePageTitle('Inventory Management');
+
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="space-y-6 fade-in">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-800">Inventory</h2>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Consumables (Detergents/Soaps)</h3>
+                        <div class="flex justify-end mb-4">
+  <button onclick="handleAddConsumable()" 
+          class="px-4 py-2 btn-primary text-white rounded-lg text-sm">
+      + Add Item
+  </button>
+</div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Name</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Quantity</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Min Stock</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Unit Price</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Status</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${appState.consumables.map(item => `
+                                        <tr class="table-row border-b border-gray-200">
+                                            <td class="px-4 py-3 font-medium">${item.name}</td>
+                                            <td class="px-4 py-3">${item.quantity} ${item.unit}</td>
+                                            <td class="px-4 py-3">${item.minStock} ${item.unit}</td>
+                                            <td class="px-4 py-3">${appState.settings.currency}${item.price.toFixed(2)}</td>
+                                            <td class="px-4 py-3">
+                                                ${item.quantity <= item.minStock ? 
+                                                    '<span class="badge badge-danger">Low Stock</span>' : 
+                                                    '<span class="badge badge-success">In Stock</span>'
+                                                }
+                                            </td>
+                                            <td class="px-4 py-3 space-x-2">
+                                                <button onclick="handleEditConsumable('${item.id}')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">Edit</button>
+                                                <button onclick="handleDeleteConsumable('${item.id}')" class="text-red-600 hover:text-red-700 text-sm font-medium">Delete</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Supplies & Materials</h3>  
+                        <div class="flex justify-end mb-4">
+  <button onclick="handleAddSupply()" 
+          class="px-4 py-2 btn-primary text-white rounded-lg text-sm">
+      + Add Item
+  </button>
+</div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Item Name</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Category</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Quantity</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Min Stock</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Unit Price</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Status</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${appState.inventory.map(item => `
+                                        <tr class="table-row border-b border-gray-200">
+                                            <td class="px-4 py-3 font-medium">${item.name}</td>
+                                            <td class="px-4 py-3">${item.category}</td>
+                                            <td class="px-4 py-3">${item.quantity}</td>
+                                            <td class="px-4 py-3">${item.minStock}</td>
+                                            <td class="px-4 py-3">${appState.settings.currency}${item.price.toFixed(2)}</td>
+                                            <td class="px-4 py-3">
+                                                ${item.quantity <= item.minStock ? 
+                                                    '<span class="badge badge-danger">Low Stock</span>' : 
+                                                    '<span class="badge badge-success">In Stock</span>'
+                                                }
+                                            </td>
+                                            <td class="px-4 py-3 space-x-2">
+                                                <button onclick="handleEditSupply('${item.id}')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">Edit</button>
+                                                <button onclick="handleDeleteSupply('${item.id}')" class="text-red-600 hover:text-red-700 text-sm font-medium">Delete</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleAddConsumable() {
+            showAdminPasswordVerification(showAddConsumableModal, 'Add Consumable Item');
+        }
+
+        function handleEditConsumable(itemId) {
+            showAdminPasswordVerification(() => showEditConsumableModal(itemId), 'Edit Consumable Item');
+        }
+
+        function handleDeleteConsumable(itemId) {
+            showAdminPasswordVerification(() => deleteConsumable(itemId), 'Delete Consumable Item');
+        }
+
+        function handleAddSupply() {
+            showAdminPasswordVerification(showAddSupplyModal, 'Add Supply Item');
+        }
+
+        function handleEditSupply(itemId) {
+            showAdminPasswordVerification(() => showEditSupplyModal(itemId), 'Edit Supply Item');
+        }
+
+        function handleDeleteSupply(itemId) {
+            showAdminPasswordVerification(() => deleteSupplyItem(itemId), 'Delete Supply Item');
+        }
+
+        function showAddConsumableModal() {
+            const formHtml = `
+                <form id="add-consumable-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+                        <input type="text" id="cons-name" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                            <input type="number" id="cons-qty" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Min Stock</label>
+                            <input type="number" id="cons-min" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Unit Price</label>
+                        <input type="number" id="cons-price" step="0.01" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Unit</label>
+                        <input type="text" id="cons-unit" placeholder="e.g., pc, ml" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Add</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Add Consumable Item');
+
+            document.getElementById('add-consumable-form').addEventListener('submit', e => {
+                e.preventDefault();
+
+                const newConsumable = {
+                    id: generateUniqueId('cons'),
+                    name: document.getElementById('cons-name').value,
+                    quantity: parseInt(document.getElementById('cons-qty').value),
+                    minStock: parseInt(document.getElementById('cons-min').value),
+                    price: parseFloat(document.getElementById('cons-price').value),
+                    unit: document.getElementById('cons-unit').value
+                };
+
+                appState.consumables.push(newConsumable);
+                saveToLocalStorage();
+                closeModal();
+                renderInventory();
+                showToast('New consumable item added!', 'success');
+            });
+        }
+
+        function showEditConsumableModal(itemId) {
+            const item = appState.consumables.find(i => i.id === itemId);
+            if (!item) return;
+
+            const formHtml = `
+                <form id="edit-consumable-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                        <input type="text" id="cons-name" value="${item.name}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantity (${item.unit})</label>
+                            <input type="number" id="cons-quantity" value="${item.quantity}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Min Stock</label>
+                            <input type="number" id="cons-minstock" value="${item.minStock}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Unit Price</label>
+                        <input type="number" id="cons-price" value="${item.price}" step="0.01" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Update</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Edit Consumable');
+
+            document.getElementById('edit-consumable-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                item.name = document.getElementById('cons-name').value;
+                item.quantity = parseInt(document.getElementById('cons-quantity').value);
+                item.minStock = parseInt(document.getElementById('cons-minstock').value);
+                item.price = parseFloat(document.getElementById('cons-price').value);
+
+                saveToLocalStorage();
+                closeModal();
+                renderInventory();
+                showToast('Consumable updated successfully', 'success');
+            });
+        }
+
+        function deleteConsumable(itemId) {
+            appState.consumables = appState.consumables.filter(i => i.id !== itemId);
+            saveToLocalStorage();
+            renderInventory();
+            showToast('Consumable deleted successfully', 'success');
+        }
+
+        function showAddSupplyModal() {
+            const formHtml = `
+                <form id="add-supply-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+                        <input type="text" id="supply-name" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                            <input type="text" id="supply-category" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                            <input type="number" id="supply-qty" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Min Stock</label>
+                            <input type="number" id="supply-min" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Unit Price</label>
+                            <input type="number" id="supply-price" step="0.01" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Add</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Add Supply Item');
+
+            document.getElementById('add-supply-form').addEventListener('submit', e => {
+                e.preventDefault();
+
+                const newItem = {
+                    id: generateUniqueId('supply'),
+                    name: document.getElementById('supply-name').value,
+                    category: document.getElementById('supply-category').value,
+                    quantity: parseInt(document.getElementById('supply-qty').value),
+                    minStock: parseInt(document.getElementById('supply-min').value),
+                    price: parseFloat(document.getElementById('supply-price').value)
+                };
+
+                if (!appState.inventory) appState.inventory = [];
+                appState.inventory.push(newItem);
+
+                saveToLocalStorage();
+                closeModal();
+                renderInventory();
+                showToast('New supply item added successfully!', 'success');
+            });
+        }
+
+        function showEditSupplyModal(itemId) {
+            const item = appState.inventory.find(i => i.id === itemId);
+            if (!item) return;
+
+            const formHtml = `
+                <form id="edit-supply-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+                        <input type="text" id="supply-name" value="${item.name}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                            <input type="text" id="supply-category" value="${item.category}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                            <input type="number" id="supply-qty" value="${item.quantity}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Min Stock</label>
+                            <input type="number" id="supply-min" value="${item.minStock}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Unit Price</label>
+                            <input type="number" id="supply-price" value="${item.price}" step="0.01" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Update</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Edit Supply Item');
+
+            document.getElementById('edit-supply-form').addEventListener('submit', e => {
+                e.preventDefault();
+                item.name = document.getElementById('supply-name').value;
+                item.category = document.getElementById('supply-category').value;
+                item.quantity = parseInt(document.getElementById('supply-qty').value);
+                item.minStock = parseInt(document.getElementById('supply-min').value);
+                item.price = parseFloat(document.getElementById('supply-price').value);
+
+                saveToLocalStorage();
+                closeModal();
+                renderInventory();
+                showToast('Supply item updated successfully!', 'success');
+            });
+        }
+
+        function deleteSupplyItem(itemId) {
+            appState.inventory = appState.inventory.filter(i => i.id !== itemId);
+            saveToLocalStorage();
+            renderInventory();
+            showToast('Supply item deleted successfully!', 'success');
+        }
+
+        // ==================== REPORTS ====================
+        function renderReports() {
+            appState.currentView = 'reports';
+            updateSidebar();
+            updatePageTitle('Sales Reports');
+
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="space-y-6 fade-in">
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Report Filters</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
+                                <select id="report-type" onchange="updateReportDisplay()" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="yearly">Yearly</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                                <input type="date" id="start-date" onchange="updateReportDisplay()" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                                <input type="date" id="end-date" onchange="updateReportDisplay()" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="report-content" class="space-y-6">
+                        <!-- Report content will be populated -->
+                    </div>
+                </div>
+            `;
+
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+            document.getElementById('start-date').valueAsDate = thirtyDaysAgo;
+            document.getElementById('end-date').valueAsDate = today;
+
+            updateReportDisplay();
+            
+                document.getElementById('start-date').addEventListener('change', function () {
+    this.dataset.manual = "true";
+    updateReportDisplay();
+});
+
+document.getElementById('end-date').addEventListener('change', function () {
+    this.dataset.manual = "true";
+    updateReportDisplay();
+});
+
+
+        }
+
+       // ====== REPORT RENDER + CHART BUILDERS (fixed) ======
+
+let revenueChartInstance = null;
+let topServicesChartInstance = null;
+
+function updateReportDisplay() {
+    const reportType = document.getElementById('report-type').value;
+    const startInput = document.getElementById('start-date');
+    const endInput = document.getElementById('end-date');
+
+    // Read values from inputs (if user cleared, value will be "")
+    let startDate = startInput.value ? new Date(startInput.value) : null;
+    let endDate = endInput.value ? new Date(endInput.value) : null;
+
+    // Detect if user has manually changed either input
+    const userManuallyChangedDates =
+        startInput.dataset.manual === "true" ||
+        endInput.dataset.manual === "true";
+
+    // Auto-update date range only when user has NOT manually edited the dates
+    if (!userManuallyChangedDates) {
+        const now = new Date();
+        endDate = new Date(now); // endDate defaults to today when auto
+        switch (reportType) {
+            case "daily":
+                startDate = new Date(now);
+                break;
+            case "weekly":
+                startDate = new Date(now);
+                startDate.setDate(startDate.getDate() - 7);
+                break;
+            case "monthly":
+                startDate = new Date(now);
+                startDate.setMonth(startDate.getMonth() - 1);
+                break;
+            case "yearly":
+                startDate = new Date(now);
+                startDate.setFullYear(startDate.getFullYear() - 1);
+                break;
+            default:
+                startDate = new Date(now);
+        }
+
+        // Show the computed dates in the inputs
+        startInput.valueAsDate = startDate;
+        endInput.valueAsDate = endDate;
+    }
+
+    // If user manually cleared a date, interpret blank start as "very old" and blank end as "today"
+    // This avoids comparisons like orderDate >= null which are unreliable.
+    if (!startDate) startDate = new Date("1970-01-01"); // effectively no lower bound
+    if (!endDate) endDate = new Date(); // effectively now
+
+    // Normalize time-of-day to include full end date (so orders on endDate are included)
+    startDate.setHours(0,0,0,0);
+    endDate.setHours(23,59,59,999);
+
+    // Filter orders safely
+    const filteredOrders = appState.orders.filter(order => {
+        // Ensure order.date exists and is parseable; if not, exclude it.
+        if (!order.date) return false;
+        const orderDate = new Date(order.date);
+        if (isNaN(orderDate)) return false;
+        return orderDate >= startDate && orderDate <= endDate;
+    });
+
+    // Sort newest first
+    filteredOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Calculate stats
+    const totalRevenue = filteredOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+    const totalOrders = filteredOrders.length;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // Top selling services
+    const itemCount = {};
+    filteredOrders.forEach(order => {
+        if (!Array.isArray(order.items)) return;
+        order.items.forEach(item => {
+            const name = item && item.name ? item.name : 'Unknown';
+            itemCount[name] = (itemCount[name] || 0) + 1;
+        });
+    });
+
+    const topServices = Object.entries(itemCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+    // Render the report HTML (keeps canvas placeholders inside a fixed-height container)
+    const reportContent = document.getElementById('report-content');
+    reportContent.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="card p-6">
+                <p class="text-sm text-gray-600">Total Revenue</p>
+                <p class="text-3xl font-bold text-gray-800 mt-2">${appState.settings.currency}${totalRevenue.toFixed(2)}</p>
+            </div>
+            <div class="card p-6">
+                <p class="text-sm text-gray-600">Total Orders</p>
+                <p class="text-3xl font-bold text-gray-800 mt-2">${totalOrders}</p>
+            </div>
+            <div class="card p-6">
+                <p class="text-sm text-gray-600">Avg Order Value</p>
+                <p class="text-3xl font-bold text-gray-800 mt-2">${appState.settings.currency}${avgOrderValue.toFixed(2)}</p>
+            </div>
+        </div>
+
+        <div class="card p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Revenue & Orders Over Time</h3>
+            <div style="height:220px; position:relative;">
+                <canvas id="revenueChart" style="width:100%;height:100%"></canvas>
+                <div id="revenueChartNoData" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;">
+                    <p class="text-sm text-gray-500">No revenue data for selected range.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-6 mt-4">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Top Selling Services</h3>
+            <div style="height:220px; position:relative;">
+                <canvas id="topServicesChart" style="width:100%;height:100%"></canvas>
+                <div id="topServicesChartNoData" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;">
+                    <p class="text-sm text-gray-500">No service sales in selected range.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-6 mt-4">
+            <div class="flex justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Transaction Details</h3>
+                <button onclick="showAdminPasswordVerification(exportExcel, 'Export Excel')" 
+        class="px-4 py-2 border border-green-600 text-green-600 rounded-lg">
+    Export Excel
+</button>
+
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-medium text-gray-700">Order ID</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-700">Customer</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-700">Items</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-700">Total</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-700">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredOrders.map(order => `
+                            <tr class="table-row border-b">
+                                <td class="px-4 py-3 text-gray-700">${order.id}</td>
+                                <td class="px-4 py-3 text-gray-700">${order.customer || "N/A"}</td>
+                                <td class="px-4 py-3 text-gray-700">${order.items ? order.items.length : 0} item(s)</td>
+                                <td class="px-4 py-3 text-gray-700">${appState.settings.currency}${(Number(order.total)||0).toFixed(2)}</td>
+                                <td class="px-4 py-3 text-gray-700">${order.date}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // Build charts with safe checks
+    buildRevenueChart(filteredOrders);
+    buildTopServicesChart(topServices);
+}
+
+function buildRevenueChart(filteredOrders) {
+    const canvas = document.getElementById('revenueChart');
+    const noDataDiv = document.getElementById('revenueChartNoData');
+
+    // If canvas missing (shouldn't happen) bail quietly
+    if (!canvas) return;
+
+    // Aggregate by date
+    const revenueByDate = {};
+    const ordersByDate = {};
+    filteredOrders.forEach(order => {
+        if (!order.date) return;
+        const d = order.date;
+        revenueByDate[d] = (revenueByDate[d] || 0) + (Number(order.total) || 0);
+        ordersByDate[d] = (ordersByDate[d] || 0) + 1;
+    });
+
+    // Clean & sort dates ASCENDING
+const labels = Object.keys(revenueByDate)
+    .filter(date => !isNaN(new Date(date)))
+    .sort((a, b) => new Date(a) - new Date(b));
+
+const revenueData = labels.map(l => revenueByDate[l]);
+const orderCountData = labels.map(l => ordersByDate[l]);
+
+
+    // Show/hide no-data message
+    if (labels.length === 0) {
+        if (revenueChartInstance) {
+            revenueChartInstance.destroy();
+            revenueChartInstance = null;
+        }
+        if (noDataDiv) noDataDiv.style.display = 'flex';
+        return;
+    } else {
+        if (noDataDiv) noDataDiv.style.display = 'none';
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    // destroy previous
+    if (revenueChartInstance) revenueChartInstance.destroy();
+
+    revenueChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: revenueData,
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: false,
+                },
+                {
+                    label: 'Order Count',
+                    data: orderCountData,
+                    borderWidth: 2,
+                    borderDash: [5,5],
+                    fill: false,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } },
+            scales: {
+                x: { display: true },
+                y: { display: true }
+            }
+        }
+    });
+}
+
+function buildTopServicesChart(topServices) {
+    const canvas = document.getElementById('topServicesChart');
+    const noDataDiv = document.getElementById('topServicesChartNoData');
+
+    if (!canvas) return;
+
+    const labels = topServices.map(s => s[0]);
+    const counts = topServices.map(s => s[1]);
+
+    if (labels.length === 0) {
+        if (topServicesChartInstance) {
+            topServicesChartInstance.destroy();
+            topServicesChartInstance = null;
+        }
+        if (noDataDiv) noDataDiv.style.display = 'flex';
+        return;
+    } else {
+        if (noDataDiv) noDataDiv.style.display = 'none';
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    if (topServicesChartInstance) topServicesChartInstance.destroy();
+
+    topServicesChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Sold Count',
+                data: counts,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { display: true },
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+
+function exportCSV() {
+    const rows = [
+        ['Order ID', 'Customer', 'Items', 'Total', 'Date'],
+        ...appState.orders.map(order => [
+            order.id,
+            order.customer || "N/A",
+            order.items.length,
+            order.total,
+            order.date
+        ])
+    ];
+
+    const csvContent =
+        "data:text/csv;charset=utf-8," +
+        rows.map(e => e.join(",")).join("\n");
+
+    const link = document.createElement("a");
+    link.href = csvContent;
+    link.download = "sales-report.csv";
+    link.click();
+}
+
+
+
+
+
+
+
+
+        // ==================== CUSTOMERS ====================
+        // ========== USER PASSWORD VERIFICATION WRAPPERS ==========
+
+function verifyAddUser() {
+    showAdminPasswordVerification(showAddUserModal, 'Add User');
+}
+
+function verifyEditUser(userId) {
+    showAdminPasswordVerification(() => showEditUserModal(userId), 'Edit User');
+}
+
+function verifyDeleteUser(userId) {
+    showAdminPasswordVerification(() => deleteUser(userId), 'Delete User');
+}
+
+// ==================== PRICING PASSWORD VERIFICATION ====================
+
+function verifySavePerKiloPrice() {
+    showAdminPasswordVerification(savePerKiloPrice, 'Update Per-Kilo Price');
+}
+
+function verifyUpdateServicePrice(serviceId) {
+    showAdminPasswordVerification(() => updateServicePrice(serviceId), 'Update Service Price');
+}
+
+
+
+        // ==================== USER MANAGEMENT ====================
+        function renderUserManagement() {
+            appState.currentView = 'users';
+            updateSidebar();
+            updatePageTitle('User Management');
+
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="space-y-6 fade-in">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-800">Users</h2>
+                        <button onclick="verifyAddUser()"  class="btn-primary px-4 py-2 text-white rounded-lg font-medium">
+                            + Add User
+                        </button>
+                    </div>
+
+                    <div class="card p-6">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Username</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Email</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Role</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Created</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${appState.users.map(user => `
+                                        <tr class="table-row border-b border-gray-200">
+                                            <td class="px-4 py-3 font-medium">${user.username}</td>
+                                            <td class="px-4 py-3">${user.email || 'N/A'}</td>
+                                            <td class="px-4 py-3"><span class="badge badge-info">${user.role}</span></td>
+                                            <td class="px-4 py-3">${new Date(user.createdAt).toLocaleDateString()}</td>
+                                            <td class="px-4 py-3 space-x-2">
+                                                <button onclick="verifyEditUser('${user.id}')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">Edit</button>
+                                                <button onclick="verifyDeleteUser('${user.id}')" class="text-red-600 hover:text-red-700 text-sm font-medium">Delete</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showAddUserModal() {
+            const formHtml = `
+                <form id="add-user-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                        <input type="text" id="user-username" placeholder="Enter username" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="user-email" placeholder="Enter email" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" id="user-password" placeholder="Enter password" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                        <select id="user-role" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            <option value="">-- Select Role --</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Cashier">Cashier</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Security Question</label>
+                        <input type="text" id="user-security-question" placeholder="e.g., What is your favorite color?" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Security Answer</label>
+                        <input type="text" id="user-security-answer" placeholder="Enter answer" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Add User</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Add User');
+
+            document.getElementById('add-user-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newUser = {
+                    id: generateUniqueId('user'),
+                    username: document.getElementById('user-username').value,
+                    email: document.getElementById('user-email').value,
+                    password: document.getElementById('user-password').value,
+                    role: document.getElementById('user-role').value,
+                    securityQuestion: document.getElementById('user-security-question').value,
+                    securityAnswer: document.getElementById('user-security-answer').value.toLowerCase(),
+                    createdAt: new Date().toISOString()
+                };
+
+                appState.users.push(newUser);
+                saveToLocalStorage();
+                closeModal();
+                renderUserManagement();
+                showToast('User added successfully', 'success');
+            });
+        }
+
+        function showEditUserModal(userId) {
+            const user = appState.users.find(u => u.id === userId);
+            if (!user) return;
+
+            const formHtml = `
+                <form id="edit-user-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                        <input type="text" id="user-username" value="${user.username}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="user-email" value="${user.email}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                        <select id="user-role" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            <option value="Admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                            <option value="Cashier" ${user.role === 'Cashier' ? 'selected' : ''}>Cashier</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Security Question</label>
+                        <input type="text" id="user-security-question" value="${user.securityQuestion}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Security Answer</label>
+                        <input type="text" id="user-security-answer" value="${user.securityAnswer}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Update User</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Edit User');
+
+            document.getElementById('edit-user-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                user.username = document.getElementById('user-username').value;
+                user.email = document.getElementById('user-email').value;
+                user.role = document.getElementById('user-role').value;
+                user.securityQuestion = document.getElementById('user-security-question').value;
+                user.securityAnswer = document.getElementById('user-security-answer').value.toLowerCase();
+
+                saveToLocalStorage();
+                closeModal();
+                renderUserManagement();
+                showToast('User updated successfully', 'success');
+            });
+        }
+
+        function deleteUser(userId) {
+            if (appState.users.length === 1) {
+                showToast('Cannot delete the last user', 'error');
+                return;
+            }
+
+            if (confirm('Are you sure you want to delete this user?')) {
+                appState.users = appState.users.filter(u => u.id !== userId);
+                saveToLocalStorage();
+                renderUserManagement();
+                showToast('User deleted successfully', 'success');
+            }
+        }
+
+        // ==================== SHIFTS MANAGEMENT ====================
+        function renderShifts() {
+            appState.currentView = 'shifts';
+            updateSidebar();
+            updatePageTitle('Shift Management');
+
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="space-y-6 fade-in">
+                    <h2 class="text-2xl font-bold text-gray-800">Shift Records</h2>
+
+                    <div class="card p-6">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Cashier</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Clock In</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Clock Out</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Duration</th>
+                                        <th class="px-4 py-3 text-left font-medium text-gray-700">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${appState.shifts.map(shift => {
+                                        const clockIn = new Date(shift.clockInTime);
+                                        const clockOut = shift.clockOutTime ? new Date(shift.clockOutTime) : null;
+                                        const duration = clockOut ? 
+                                            Math.round((clockOut - clockIn) / 60000) + ' min' : 
+                                            'In Progress';
+                                        const status = clockOut ? 'Completed' : 'Active';
+                                        
+                                        return `
+                                            <tr class="table-row border-b border-gray-200">
+                                                <td class="px-4 py-3 font-medium">${shift.username}</td>
+                                                <td class="px-4 py-3">${clockIn.toLocaleString()}</td>
+                                                <td class="px-4 py-3">${clockOut ? clockOut.toLocaleString() : 'N/A'}</td>
+                                                <td class="px-4 py-3">${duration}</td>
+                                                <td class="px-4 py-3">
+                                                    <span class="badge ${status === 'Active' ? 'badge-warning' : 'badge-success'}">
+                                                        ${status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==================== SETTINGS ====================
+        function renderSettings() {
+            appState.currentView = 'settings';
+            updateSidebar();
+            updatePageTitle('Settings');
+
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="space-y-6 fade-in">
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-6">Business Settings</h3>
+                        <form id="settings-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                                <input type="text" id="setting-name" value="${appState.settings.businessName}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                                <input type="text" id="setting-address" value="${appState.settings.address}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                                <input type="tel" id="setting-phone" value="${appState.settings.phone}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" id="setting-email" value="${appState.settings.email}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                                <input type="text" id="setting-currency" value="${appState.settings.currency}" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                            </div>
+
+                            <div class="flex justify-end space-x-3 pt-4">
+                                <button type="submit" class="px-4 py-2 btn-primary text-white rounded-lg">Save Settings</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-6">Pricing Management</h3>
+                        
+                        <div class="mb-6">
+                            <h4 class="text-md font-semibold text-gray-700 mb-4">Per-Kilo Price</h4>
+                            <div class="flex gap-4 items-end">
+                                <div class="flex-1">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Price per Kg</label>
+                                    <input type="number" id="setting-per-kilo" value="${appState.settings.perKiloPrice}" step="0.01" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                                </div>
+                                <button type="button" onclick="verifySavePerKiloPrice()" class="px-4 py-2 btn-primary text-white rounded-lg">Update</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <h4 class="text-md font-semibold text-gray-700 mb-4">Service Prices</h4>
+                            <div class="space-y-3">
+                                ${appState.services.map(service => `
+                                    <div class="flex gap-4 items-end">
+                                        <div class="flex-1">
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">${service.name}</label>
+                                            <input type="number" id="service-price-${service.id}" value="${service.price}" step="0.01" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                                        </div>
+                                        <button type="button" onclick="verifyUpdateServicePrice('${service.id}')" class="px-4 py-2 btn-primary text-white rounded-lg text-sm">Update</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Data Management</h3>
+                        <div class="space-y-3">
+                            <button onclick="showAdminPasswordVerification(exportData, 'Export Customer Information')" 
+        class="w-full px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50">
+    Export Data
+</button>
+
+                            <input type="file" id="importFile" accept=".json" class="hidden"
+       onchange="showAdminPasswordVerification(() => importData(event), 'Import Customer Information')">
+
+                            <button onclick="document.getElementById('importFile').click()" class="w-full px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50">
+                                Import Data
+                            </button>
+                            <button onclick="showAdminPasswordVerification(clearAllData, 'Clear All Data')" 
+        class="w-full px-4 py-2 border-2 border-red-600 text-red-600 rounded-lg font-medium hover:bg-red-50">
+    Clear All Data
+</button>
+
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('settings-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                appState.settings.businessName = document.getElementById('setting-name').value;
+                appState.settings.currency = document.getElementById('setting-currency').value;
+                appState.settings.phone = document.getElementById('setting-phone').value;
+                appState.settings.email = document.getElementById('setting-email').value;
+                appState.settings.address = document.getElementById('setting-address').value;
+
+                saveToLocalStorage();
+                showToast('Settings saved successfully', 'success');
+            });
+        }
+
+        // ==================== CUSTOMER MANAGEMENT ====================
+        function renderCustomers() {
+            // Restrict cashiers from viewing customer management
+            if (appState.currentUser && appState.currentUser.role === 'Cashier') {
+                showToast('You do not have permission to view Customer Management', 'error');
+                renderPOS();
+                return;
+            }
+            
+            appState.currentView = 'customers';
+            updatePageTitle('Customer Management');
+            const content = document.getElementById('content');
+
+            let html = `
+                <div class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-3xl font-bold text-gray-800">Customer Management</h2>
+                        <button onclick="showAddCustomerModal()" class="btn-primary px-4 py-2 text-white rounded-lg font-medium">
+                            + Add Customer
+                        </button>
+                    </div>
+
+                    ${appState.customers.length === 0 ? `
+                        <div class="card p-8 text-center">
+                            <p class="text-gray-500 text-lg">No customers found. Click "Add Customer" to create one.</p>
+                        </div>
+                    ` : `
+                        <div class="card overflow-hidden">
+                            <table class="w-full">
+                                <thead class="bg-gray-100 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">ID</th>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Address</th>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Total Orders</th>
+                                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${appState.customers.map(customer => `
+                                        <tr class="table-row border-b border-gray-200 hover:bg-gray-50">
+                                            <td class="px-6 py-3 text-sm text-gray-700">${customer.id}</td>
+                                            <td class="px-6 py-3 text-sm font-medium text-gray-800">${customer.name}</td>
+                                            <td class="px-6 py-3 text-sm text-gray-700">${customer.phone}</td>
+                                            <td class="px-6 py-3 text-sm text-gray-700">${customer.email}</td>
+                                            <td class="px-6 py-3 text-sm text-gray-700">${customer.address}</td>
+                                            <td class="px-6 py-3 text-sm text-gray-700">${customer.totalOrders || 0}</td>
+                                            <td class="px-6 py-3 text-sm space-x-2">
+                                                <button onclick="showAdminPasswordVerification(() => showEditCustomerModal('${customer.id}'), 'Edit Customer')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium">Edit</button>
+                                                <button onclick="showAdminPasswordVerification(() => deleteCustomer('${customer.id}'), 'Delete Customer')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium">Delete</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                </div>
+            `;
+
+            content.innerHTML = html;
+        }
+
+        function showAddCustomerModal() {
+            const formHtml = `
+                <form id="add-customer-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                        <input type="text" id="customer-name" placeholder="Enter customer name" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                        <input type="tel" id="customer-phone" placeholder="Enter phone number" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="customer-email" placeholder="Enter email address" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                        <textarea id="customer-address" placeholder="Enter address" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" rows="3"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium">Add Customer</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Add New Customer');
+
+            document.getElementById('add-customer-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newCustomer = {
+                    id: generateUniqueId('cust'),
+                    name: document.getElementById('customer-name').value.trim(),
+                    phone: document.getElementById('customer-phone').value.trim(),
+                    email: document.getElementById('customer-email').value.trim(),
+                    address: document.getElementById('customer-address').value.trim(),
+                    totalOrders: 0,
+                    createdAt: new Date().toISOString()
+                };
+
+                if (!newCustomer.name || !newCustomer.phone) {
+                    showToast('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                appState.customers.push(newCustomer);
+                saveToLocalStorage();
+                closeModal();
+                renderCustomers();
+                showToast(`${newCustomer.name} has been added successfully`, 'success');
+            });
+        }
+
+        function showEditCustomerModal(customerId) {
+            const customer = appState.customers.find(c => c.id === customerId);
+            if (!customer) {
+                showToast('Customer not found', 'error');
+                return;
+            }
+
+            const formHtml = `
+                <form id="edit-customer-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                        <input type="text" id="customer-name" placeholder="Enter customer name" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" value="${customer.name}" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                        <input type="tel" id="customer-phone" placeholder="Enter phone number" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" value="${customer.phone}" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="customer-email" placeholder="Enter email address" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" value="${customer.email}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                        <textarea id="customer-address" placeholder="Enter address" class="input-field w-full px-3 py-2 rounded-lg focus:outline-none" rows="3">${customer.address}</textarea>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Save Changes</button>
+                    </div>
+                </form>
+            `;
+
+            showModal(formHtml, 'Edit Customer');
+
+            document.getElementById('edit-customer-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                customer.name = document.getElementById('customer-name').value.trim();
+                customer.phone = document.getElementById('customer-phone').value.trim();
+                customer.email = document.getElementById('customer-email').value.trim();
+                customer.address = document.getElementById('customer-address').value.trim();
+
+                if (!customer.name || !customer.phone) {
+                    showToast('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                saveToLocalStorage();
+                closeModal();
+                renderCustomers();
+                showToast(`${customer.name} has been updated successfully`, 'success');
+            });
+        }
+
+        function deleteCustomer(customerId) {
+            const customer = appState.customers.find(c => c.id === customerId);
+            if (!customer) {
+                showToast('Customer not found', 'error');
+                return;
+            }
+
+            if (confirm(`Are you sure you want to delete ${customer.name}? This action cannot be undone.`)) {
+                appState.customers = appState.customers.filter(c => c.id !== customerId);
+                saveToLocalStorage();
+                renderCustomers();
+                showToast(`${customer.name} has been deleted successfully`, 'success');
+            }
+        }
+
+        // ==================== UI UTILITIES ====================
+        function updateSidebar() {
+            const navMenu = document.getElementById('nav-menu');
+            const userInfo = document.getElementById('user-info');
+
+            userInfo.innerHTML = `
+                <p class="font-medium">${appState.currentUser.username}</p>
+                <p class="text-xs text-gray-400">${appState.currentUser.role}</p>
+            `;
+
+            const menuItems = appState.currentUser.role === 'Admin' ? [
+                { label: 'Dashboard', view: 'dashboard', icon: '📊' },
+                { label: 'Point of Sale', view: 'pos', icon: '💳' },
+                { label: 'Customers', view: 'customers', icon: '👥' },
+                { label: 'Inventory', view: 'inventory', icon: '📦' },
+                { label: 'Reports', view: 'reports', icon: '📈' },
+                { label: 'Shifts', view: 'shifts', icon: '⏰' },
+                { label: 'Users', view: 'users', icon: '👤' },
+                { label: 'Settings', view: 'settings', icon: '⚙️' }
+            ] : [
+                { label: 'Point of Sale', view: 'pos', icon: '💳' }
+            ];
+
+            navMenu.innerHTML = menuItems.map(item => `
+                <button onclick="renderView('${item.view}')" class="nav-item w-full text-left px-4 py-3 rounded-lg ${appState.currentView === item.view ? 'active' : ''}">
+                    <span class="mr-2">${item.icon}</span>${item.label}
+                </button>
+            `).join('');
+
+            updateClockInOutButton();
+        }
+
+        function updatePageTitle(title) {
+            document.getElementById('page-title').textContent = title;
+        }
+
+        function renderView(view) {
+            switch(view) {
+                case 'dashboard':
+                    renderDashboard();
+                    break;
+                case 'pos':
+                    renderPOS();
+                    break;
+                case 'customers':
+                    showAdminPasswordVerification(renderCustomers, 'Access Customers');
+                    break;
+                case 'inventory':
+                    renderInventory();
+                    break;
+                case 'reports':
+                    renderReports();
+                    break;
+                case 'shifts':
+                    renderShifts();
+                    break;
+                case 'users':
+                    renderUserManagement();
+                    break;
+                case 'settings':
+                    renderSettings();
+                    break;
+            }
+        }
+
+        function showModal(content, title) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').innerHTML = content;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast p-4 rounded-lg text-white ${
+                type === 'success' ? 'bg-green-500' :
+                type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-yellow-500' :
+                'bg-blue-500'
+            }`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function updateClock() {
+            const clock = document.getElementById('clock');
+            const now = new Date();
+            clock.textContent = now.toLocaleTimeString();
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('hidden');
+        }
+
+        function generateUniqueId(prefix) {
+            return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+
+        window.savePerKiloPrice = function() {
+            const newPrice = parseFloat(document.getElementById('setting-per-kilo').value);
+            if (isNaN(newPrice) || newPrice < 0) {
+                showToast('Please enter a valid price', 'error');
+                return;
+            }
+            appState.settings.perKiloPrice = newPrice;
+            saveToLocalStorage();
+            showToast('Per-kilo price updated successfully', 'success');
+        };
+
+        window.updateServicePrice = function(serviceId) {
+            const newPrice = parseFloat(document.getElementById(`service-price-${serviceId}`).value);
+            if (isNaN(newPrice) || newPrice < 0) {
+                showToast('Please enter a valid price', 'error');
+                return;
+            }
+            const service = appState.services.find(s => s.id === serviceId);
+            if (service) {
+                service.price = newPrice;
+                saveToLocalStorage();
+                showToast(`${service.name} price updated successfully`, 'success');
+            }
+        };
+
+        window.exportData = function() {
+            const dataToExport = {
+                services: appState.services,
+                consumables: appState.consumables,
+                inventory: appState.inventory,
+                customers: appState.customers,
+                transactions: appState.transactions,
+                users: appState.users,
+                settings: appState.settings,
+                exportDate: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(dataToExport, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `godclaundry-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast('Data exported successfully', 'success');
+        };
+
+        window.clearAllData = function() {
+            if (confirm('Are you sure you want to clear all data? This action cannot be undone!')) {
+                if (confirm('This will delete all customers, transactions, inventory, and settings. Are you absolutely sure?')) {
+                    appState.services = [];
+                    appState.consumables = [];
+                    appState.inventory = [];
+                    appState.customers = [];
+                    appState.transactions = [];
+                    appState.shifts = [];
+                    localStorage.clear();
+                    showToast('All data has been cleared', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                }
+            }
+        };
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                showToast('No file selected', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    if (typeof importedData !== 'object' || !importedData) {
+                        showToast('Invalid file format', 'error');
+                        return;
+                    }
+
+                    Object.keys(importedData).forEach(key => {
+                        if (Array.isArray(importedData[key])) {
+                            const existing = appState[key] || [];
+                            const merged = [
+                                ...existing.filter(item => !importedData[key].some(importedItem => importedItem.id === item.id)),
+                                ...importedData[key]
+                            ];
+                            appState[key] = merged;
+                        } else if (typeof importedData[key] === 'object' && importedData[key] !== null) {
+                            appState[key] = { ...(appState[key] || {}), ...importedData[key] };
+                        } else {
+                            appState[key] = importedData[key];
+                        }
+                    });
+
+                    saveToLocalStorage();
+                    showToast('Data imported successfully', 'success');
+
+                    if (appState.currentView) {
+                        renderView(appState.currentView);
+                    } else {
+                        renderDashboard();
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                    showToast('Failed to import data. Please ensure it is a valid JSON file.', 'error');
+                }
+            };
+
+            reader.readAsText(file);
+        }
+
+        function exportExcel() {
+    const worksheet = XLSX.utils.json_to_sheet(
+        appState.orders.map(order => ({
+            "Order ID": order.id,
+            "Customer": order.customer || "N/A",
+            "Items": order.items.length,
+            "Total": order.total,
+            "Date": order.date
+        }))
+    );
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "SalesReport");
+
+    XLSX.writeFile(workbook, "sales-report.xlsx");
+}
+
+
+        // ==================== INITIALIZE APP ====================
+        window.addEventListener('load', initializeApp);
+
+        
+
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+
+</body>
+</html>
